@@ -7,6 +7,10 @@ updates:
     groups:
       python-development:
         patterns: ["*"]
+    ignore:
+      # Keep local Spark tests aligned with Databricks Runtime 18 LTS (Spark 4.1).
+      - dependency-name: pyspark
+        versions: [">=4.2.0"]
   - package-ecosystem: terraform
     directory: "/infra/azure"
     schedule:
