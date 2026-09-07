@@ -10,6 +10,7 @@ variables:
   pythonVersion: "3.13"
   azureServiceConnection: "replace-with-workload-identity-service-connection"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONPATH: $(Build.SourcesDirectory)/src
 
 stages:
   - stage: Validate
