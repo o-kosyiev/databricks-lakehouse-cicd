@@ -1,0 +1,133 @@
+trigger:
+  branches:
+    include: [main]
+
+pr:
+  branches:
+    include: [main]
+
+variables:
+  pythonVersion: "3.13"
+  azureServiceConnection: "replace-with-workload-identity-service-connection"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+stages:
+  - stage: Validate
+    displayName: Validate code and infrastructure
+    jobs:
+      - job: Quality
+        displayName: Unit tests and static checks
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+            fetchDepth: 0
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(pythonVersion)
+          - script: python -m pip install --require-hashes -r requirements-dev.lock
+            displayName: Install locked development dependencies
+          - script: ./scripts/validate-ci.sh
+            displayName: Run deterministic validation
+          - publish: dist
+            artifact: lakehouse-wheel
+
+  - stage: Deploy_Dev
+    displayName: Deploy development bundle
+    dependsOn: Validate
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: Deploy
+        environment: lakehouse-dev
+        pool:
+          vmImage: ubuntu-latest
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                  fetchDepth: 1
+                - task: UsePythonVersion@0
+                  inputs:
+                    versionSpec: $(pythonVersion)
+                - script: python -m pip install --require-hashes -r requirements-dev.lock
+                  displayName: Install locked deployment dependencies
+                - task: AzureCLI@2
+                  displayName: Deploy with workload identity federation
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      export DATABRICKS_HOST="$(DATABRICKS_HOST_DEV)"
+                      export DATABRICKS_CLIENT_ID="$(DATABRICKS_CLIENT_ID_DEV)"
+                      export DATABRICKS_CLI_INSTALL_DIR="$(Agent.TempDirectory)/bin"
+                      ./scripts/install-databricks-cli.sh
+                      export PATH="$(Agent.TempDirectory)/bin:$PATH"
+                      ./scripts/deploy-bundle.sh dev
+
+  - stage: Deploy_Stage
+    displayName: Promote bundle to stage
+    dependsOn: Deploy_Dev
+    jobs:
+      - deployment: Deploy
+        environment: lakehouse-stage
+        pool:
+          vmImage: ubuntu-latest
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                  fetchDepth: 1
+                - task: UsePythonVersion@0
+                  inputs:
+                    versionSpec: $(pythonVersion)
+                - script: python -m pip install --require-hashes -r requirements-dev.lock
+                  displayName: Install locked deployment dependencies
+                - task: AzureCLI@2
+                  displayName: Deploy reviewed commit to stage
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      export DATABRICKS_HOST="$(DATABRICKS_HOST_STAGE)"
+                      export DATABRICKS_CLIENT_ID="$(DATABRICKS_CLIENT_ID_STAGE)"
+                      export DATABRICKS_CLI_INSTALL_DIR="$(Agent.TempDirectory)/bin"
+                      ./scripts/install-databricks-cli.sh
+                      export PATH="$(Agent.TempDirectory)/bin:$PATH"
+                      ./scripts/deploy-bundle.sh stage
+
+  - stage: Deploy_Prod
+    displayName: Promote bundle to production
+    dependsOn: Deploy_Stage
+    jobs:
+      - deployment: Deploy
+        environment: lakehouse-prod
+        pool:
+          vmImage: ubuntu-latest
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                  fetchDepth: 1
+                - task: UsePythonVersion@0
+                  inputs:
+                    versionSpec: $(pythonVersion)
+                - script: python -m pip install --require-hashes -r requirements-dev.lock
+                  displayName: Install locked deployment dependencies
+                - task: AzureCLI@2
+                  displayName: Deploy approved commit to production
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      export DATABRICKS_HOST="$(DATABRICKS_HOST_PROD)"
+                      export DATABRICKS_CLIENT_ID="$(DATABRICKS_CLIENT_ID_PROD)"
+                      export DATABRICKS_CLI_INSTALL_DIR="$(Agent.TempDirectory)/bin"
+                      ./scripts/install-databricks-cli.sh
+                      export PATH="$(Agent.TempDirectory)/bin:$PATH"
+                      ./scripts/deploy-bundle.sh prod

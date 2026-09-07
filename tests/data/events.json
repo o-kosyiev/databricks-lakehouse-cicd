@@ -1,0 +1,3 @@
+{"event_id":"evt-1001","device_id":"sensor-a","event_time":"2026-01-01T10:00:00Z","metric_name":"temperature","metric_value":21.5,"region":"EU"}
+{"event_id":"evt-1002","device_id":"sensor-b","event_time":"2026-01-01T10:05:00Z","metric_name":"temperature","metric_value":22.1,"region":"EU"}
+{"event_id":"evt-1003","device_id":"sensor-c","event_time":"2026-01-01T10:10:00Z","metric_name":"humidity","metric_value":44.7,"region":"NA"}

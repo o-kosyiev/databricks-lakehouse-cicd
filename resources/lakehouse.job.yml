@@ -1,0 +1,87 @@
+resources:
+  jobs:
+    telemetry_medallion_pipeline:
+      name: ${bundle.target}-telemetry-medallion-pipeline
+      description: Synthetic bronze, silver, and gold pipeline deployed as one bundle
+      max_concurrent_runs: 1
+      queue:
+        enabled: true
+
+      permissions:
+        - group_name: ${var.operator_group}
+          level: CAN_MANAGE_RUN
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+
+      job_clusters:
+        - job_cluster_key: shared_job_cluster
+          new_cluster:
+            spark_version: 18.0.x-scala2.13
+            node_type_id: Standard_D4ds_v5
+            data_security_mode: USER_ISOLATION
+            runtime_engine: STANDARD
+            autoscale:
+              min_workers: 1
+              max_workers: 3
+            azure_attributes:
+              availability: SPOT_WITH_FALLBACK_AZURE
+              first_on_demand: 1
+
+      tasks:
+        - task_key: bronze_ingestion
+          job_cluster_key: shared_job_cluster
+          python_wheel_task:
+            package_name: lakehouse_demo
+            entry_point: bronze
+            parameters:
+              - --source
+              - ${var.volume_root}/*.json
+              - --target-table
+              - "{{job.parameters.catalog}}.{{job.parameters.schema}}.bronze_events"
+          libraries:
+            - whl: ../dist/*.whl
+          timeout_seconds: 1800
+
+        - task_key: silver_curation
+          depends_on:
+            - task_key: bronze_ingestion
+          job_cluster_key: shared_job_cluster
+          python_wheel_task:
+            package_name: lakehouse_demo
+            entry_point: silver
+            parameters:
+              - --source-table
+              - "{{job.parameters.catalog}}.{{job.parameters.schema}}.bronze_events"
+              - --target-table
+              - "{{job.parameters.catalog}}.{{job.parameters.schema}}.silver_events"
+          libraries:
+            - whl: ../dist/*.whl
+          timeout_seconds: 1800
+
+        - task_key: gold_aggregation
+          depends_on:
+            - task_key: silver_curation
+          job_cluster_key: shared_job_cluster
+          python_wheel_task:
+            package_name: lakehouse_demo
+            entry_point: gold
+            parameters:
+              - --source-table
+              - "{{job.parameters.catalog}}.{{job.parameters.schema}}.silver_events"
+              - --target-table
+              - "{{job.parameters.catalog}}.{{job.parameters.schema}}.gold_daily_metrics"
+          libraries:
+            - whl: ../dist/*.whl
+          timeout_seconds: 1800
+
+      schedule:
+        quartz_cron_expression: 0 0 2 * * ?
+        timezone_id: UTC
+        pause_status: PAUSED
+
+      email_notifications:
+        no_alert_for_skipped_runs: true

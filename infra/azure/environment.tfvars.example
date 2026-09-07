@@ -1,0 +1,9 @@
+project_name = "telemetry"
+environment  = "dev"
+location     = "northeurope"
+vnet_cidr    = "10.60.0.0/16"
+
+tags = {
+  cost_center = "data-platform"
+  owner       = "data-engineering"
+}

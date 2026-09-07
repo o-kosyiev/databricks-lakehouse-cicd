@@ -1,0 +1,51 @@
+bundle:
+  name: lakehouse-demo
+
+include:
+  - resources/*.yml
+
+artifacts:
+  default:
+    type: whl
+    build: python -m build --wheel
+    path: .
+
+variables:
+  catalog:
+    description: Unity Catalog catalog owned by this workload
+    default: telemetry
+  schema:
+    description: Unity Catalog schema owned by this workload
+    default: platform_demo
+  volume_root:
+    description: Input volume path for synthetic JSON events
+    default: /Volumes/telemetry/platform_demo/landing
+  operator_group:
+    description: Workspace group allowed to operate the job
+    default: data-platform-operators
+  runtime_service_principal:
+    description: Application ID of the environment-specific runtime identity
+
+workspace:
+  root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
+
+targets:
+  dev:
+    default: true
+    mode: development
+    variables:
+      catalog: telemetry_dev
+
+  stage:
+    mode: production
+    variables:
+      catalog: telemetry_stage
+    run_as:
+      service_principal_name: ${var.runtime_service_principal}
+
+  prod:
+    mode: production
+    variables:
+      catalog: telemetry_prod
+    run_as:
+      service_principal_name: ${var.runtime_service_principal}

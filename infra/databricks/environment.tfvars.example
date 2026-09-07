@@ -1,0 +1,6 @@
+databricks_host     = "https://replace-with-workspace-host"
+access_connector_id = "/subscriptions/replace/resourceGroups/replace/providers/Microsoft.Databricks/accessConnectors/replace"
+storage_dfs_endpoint = "https://replace.dfs.core.windows.net/"
+catalog_name         = "telemetry_dev"
+schema_name          = "platform_demo"
+operator_group       = "data-platform-operators"

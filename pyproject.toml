@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lakehouse-demo"
+version = "1.0.0"
+description = "Synthetic medallion lakehouse pipeline for Azure Databricks"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+license = "MIT"
+authors = [{ name = "Oleksii Kosyiev" }]
+dependencies = []
+
+[project.optional-dependencies]
+spark = ["pyspark==4.1.0"]
+dev = [
+  "build==1.6.0",
+  "mypy==2.3.1",
+  "pytest==9.1.1",
+  "ruff==0.16.6",
+]
+
+[project.scripts]
+lakehouse-bronze = "lakehouse_demo.jobs:bronze_main"
+lakehouse-silver = "lakehouse_demo.jobs:silver_main"
+lakehouse-gold = "lakehouse_demo.jobs:gold_main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lakehouse_demo"]
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+packages = ["lakehouse_demo"]
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = ["pyspark.*"]
+ignore_missing_imports = true
