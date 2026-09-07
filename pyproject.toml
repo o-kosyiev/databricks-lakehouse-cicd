@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling==1.27.0"]
+requires = ["hatchling==1.32.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -13,7 +13,7 @@ authors = [{ name = "Oleksii Kosyiev" }]
 dependencies = []
 
 [project.optional-dependencies]
-spark = ["pyspark==4.1.0"]
+spark = ["pyspark==4.2.0"]
 dev = [
   "build==1.6.0",
   "mypy==2.3.1",
